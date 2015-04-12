@@ -1,8 +1,13 @@
 #!/usr/bin/python3
 
 
-class board:
-    def __init__(self):
+class Camelot:
+    def __init__(self, color):
+        self.hu_color = color
+        if self.hu_color == 'W':
+            self.ai_color = 'B'
+        else:
+            self.ai_color = 'W'
         self.board = [['__']*8 for i in range(14)]
         for i in range(3):
             for j in range(3-i): #top-left
@@ -22,6 +27,7 @@ class board:
         for j in [2,5]:
             self.board[4][j] = 'WP'
             self.board[9][j] = 'BP'
+
     def printboard(self):
         def horizrule():
             print('  ', end=' ')
@@ -40,5 +46,28 @@ class board:
             print(rownum)
         horizrule()
 
-game = board()
+    def selectpiece(self):
+        while True:
+            coords = input('Select your piece (you are %s) (input h for help): ' % self.hu_color)
+            if coords == 'h':
+                print('Enter the integer coordinates, for example "0, 0"')
+                continue
+            try:
+                x, y = tuple(int(i) for i in coords.split(','))
+                if self.board[x][y] != self.hu_color + 'P':
+                    print('Not your piece, try again.')
+                    continue
+                return x, y
+            except ValueError:
+                print('Please enter valid coordinates.')
+
+
+while True:
+    color = input('Select your color (W/B): ')
+    if color not in {'W', 'B'}:
+        print('Bad input, try again.')
+    else:
+        break
+game = Camelot(color)
 game.printboard()
+game.selectpiece()
