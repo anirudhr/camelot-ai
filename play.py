@@ -46,7 +46,7 @@ class Camelot:
             print(rownum)
         horizrule()
 
-    def selectpiece(self):
+    def hu_selectpiece(self):
         while True:
             coords = input('Select your piece (you are %s) (input h for help): ' % self.hu_color)
             if coords == 'h':
@@ -58,6 +58,16 @@ class Camelot:
                     print('Not your piece, try again.')
                     continue
                 return x, y
+            except ValueError:
+                print('Please enter valid coordinates.')
+
+    def hu_makemove(self):
+        startx, starty = self.hu_selectpiece()
+        while True:
+            coords = input('Select your target location: ')
+            try:
+                targetx, targety = tuple(int(i) for i in coords.split(','))
+                #validate location
             except ValueError:
                 print('Please enter valid coordinates.')
 
