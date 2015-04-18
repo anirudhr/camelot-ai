@@ -79,28 +79,43 @@ class Camelot:
     def hu_makemove(self):
         for idx, elem in enumerate(self.p_set[self.hu_color]):
             print('*** %i: %s' % (idx, elem))
-        choice = -1
-        while choice not in range(6):
-            choice = input('Select your piece from the above: ')
-            if not choice.isdigit():
+        choice1 = -1
+        while choice1 not in range(6):
+            choice1 = input('Select your piece from the above: ')
+            if not choice1.isdigit():
                 print('Bad choice, try again. ', end='')
             else:
-                choice = int(choice)
-                if choice not in range(6):
+                choice1 = int(choice1)
+                if choice1 not in range(6):
                     print('Bad choice, try again. ', end='')
-        px, py = self.p_set[self.hu_color][choice]
+        px, py = self.p_set[self.hu_color][choice1]
         moves = self.getmoves(px, py, self.hu_color)
-        print(moves)
+        for idx, elem in enumerate(moves):
+            print('*** %i: %s' % (idx, elem))
+        choice2 = -1
+        while choice2 not in range(len(moves)):
+            choice2 = input('Select your move from the above: ')
+            if not choice2.isdigit():
+                print('Bad choice, try again. ', end='')
+            else:
+                choice2 = int(choice2)
+                if choice2 not in range(len(moves)):
+                    print('Bad choice, try again. ', end='')
+        fx, fy = moves[choice2]
+        self.p_set[self.hu_color][choice1] = (fx, fy)
+        self.board[fx][fy] = self.board[px][py]
+        self.board[px][py] = '__'
 
-
-while True:
-    color = input('Select your color (W/B): ')
-    if color not in {'W', 'B'}:
-        print('Bad input, try again.')
-    else:
-        break
-game = Camelot(color)
-game.printboard()
-game.hu_makemove()
+if __name__ == '__main__':
+    while True:
+        color = input('Select your color (W/B): ')
+        if color not in {'W', 'B'}:
+            print('Bad input, try again.')
+        else:
+            break
+    game = Camelot(color)
+    game.printboard()
+    game.hu_makemove()
+    game.printboard()
 #print(game.p_set['B'])
 #print(game.p_set['W'])
