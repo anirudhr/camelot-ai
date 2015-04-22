@@ -38,11 +38,21 @@ class Camelot:
             self.bp_set.append((9,j))
         if debug:
             self.hu_color = 'W'
-            self.board[4][2], self.board[8][2] = self.board[8][2], self.board[4][2]
+            self.board[4][2], self.board[12][3] = self.board[12][3], self.board[4][2]
             self.wp_set.remove((4,2))
-            self.wp_set.append((8,2))
+            self.wp_set.append((12,3))
+            self.board[4][3], self.board[12][4] = self.board[12][4], self.board[4][3]
+            self.wp_set.remove((4,3))
+            self.wp_set.append((12,4))
             #self.detect_captures('W')
             #self.detect_captures('B')
+
+    def checkwin(self):
+        if self.board[0][3] == 'BP' and self.board[0][4] == 'BP':
+            return 'B'
+        if self.board[13][3] == 'WP' and self.board[13][4] == 'WP':
+            return 'W' 
+        return False
 
     def printboard(self):
         def horizrule():
@@ -170,14 +180,21 @@ if __name__ == '__main__':
     #    else:
     #        break
     color = 'W'
-    game = Camelot(color, debug=True)
+    game = Camelot(color, debug=False)
     if color == 'W':
         game.printboard()
         game.hu_makemove()
     while True:
         game.co_makemove()
         game.printboard()
+        if game.checkwin() == game.co_color:
+            print('AI won!')
+            break
         game.hu_makemove()
         game.printboard()
+        if game.checkwin() == game.hu_color:
+            print('You won!')
+            break
+    
 #print(game.p_set['B'])
 #print(game.p_set['W'])
