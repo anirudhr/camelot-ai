@@ -68,19 +68,21 @@ class Camelot:
         else:
             return False
         
-    def getmoves(self, px, py, pcolor):
+    def getmoves(self, px, py, pcolor, board=None):
+        if board is None:
+            board = self.board
         simplemoves = [(i,j) \
                  for i in range(px-1, px+2) \
                  for j in range(py-1, py+2) \
                  if (i != px or j != py) and \
                     self.isonboard(i,j) and \
-                    (self.board[i][j] == '__' or self.board[i][j][1] == 'C') #empty or castle
+                    (board[i][j] == '__' or board[i][j][1] == 'C') #empty or castle
                 ]
         
         cantermoves = list()
         for i,j in [(-2,2), (0,2), (2,2), (2,0), (2,-2), (0,-2), (-2,-2), (-2,0)]:
             if self.isonboard(px+i, py+j):
-                if self.board[px+i][py+j] == '__' and self.board[px+int(i/2)][py+int(j/2)] == pcolor + 'P':
+                if board[px+i][py+j] == '__' and board[px+int(i/2)][py+int(j/2)] == pcolor + 'P':
                     cantermoves.append((px+i, py+j))
 
         return simplemoves + cantermoves
@@ -97,22 +99,29 @@ class Camelot:
 
     def get_utility(self, pcolor, board):
         ocolor = 'B' if pcolor == 'W' else 'W'
-        util = 0
         castley = 13 if ocolor == 'B' else 0
         if board[castley][3] == pcolor + 'P' and board[castley][4] == pcolor + 'P':
-            util = 1000 #if both castle positions are occupied by the player
+            castlescore = 1000 #if both castle positions are occupied by the player
         elif board[castley][3] == pcolor + 'P' or board[castley][4] == pcolor + 'P':
-            util = 500 #if one castle position is occupied by the player
-        util += sum([2*(14 - abs(py - castley)) for _, py in self.p_set[pcolor]]) #distance from castle for each player piece
-        util -= 10*len(self.p_set[ocolor]) #penalty for number of enemy pieces
+            castlescore = 500 #if one castle position is occupied by the player
+        else:
+            castlescore = 0
+        print('Castle score: %i' % castlescore)
+        distancescore = sum([2*(abs(px - castley)) for px, py in self.p_set[pcolor]]) #distance from castle for each player piece
+        print('Distance score: %i' % distancescore)
+        enemyscore = -5*len(self.p_set[ocolor]) #penalty for number of enemy pieces
+        print('Enemy piece score: %i' % enemyscore)
+        return castlescore + distancescore + enemyscore
 
-    def detect_captures(self, pcolor):
+    def detect_captures(self, pcolor, board=None):
+        if board is None:
+            board = self.board
         self.capmoves[pcolor] = list() #re-initialize so that old captures aren't recorded
         target  = 'B' if pcolor == 'W' else 'W'
         for (px, py) in self.p_set[pcolor]:
             for i,j in [(-2,2), (0,2), (2,2), (2,0), (2,-2), (0,-2), (-2,-2), (-2,0)]: #directions
                 if self.isonboard(px+i, py+j):
-                    if self.board[px+i][py+j] == '__' and self.board[px+int(i/2)][py+int(j/2)] == target + 'P': #if there's an empty spot to jump over an enemy piece to
+                    if board[px+i][py+j] == '__' and board[px+int(i/2)][py+int(j/2)] == target + 'P': #if there's an empty spot to jump over an enemy piece to
                         self.capmoves[pcolor].append((i,j, px, py))
 
     def hu_makemove(self):
@@ -177,6 +186,8 @@ class Camelot:
             piecemoves = dict()
             for px, py in self.p_set[self.co_color]:
                 piecemoves[(px, py)] = self.getmoves(px, py, self.co_color)
+        else:
+            piecemoves = self.capmoves[self.co_color]
 
 if __name__ == '__main__':
     #while True:
