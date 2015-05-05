@@ -5,7 +5,7 @@ class Camelot:
     def __init__(self, color, debug=False):
         self.hu_color = color
         self.co_color = 'B' if color == 'W' else 'W'
-        self.capmoves = {'W': list(), 'B': list()} #possible capture moves for each color
+        #self.capmoves = {'W': list(), 'B': list()} #possible capture moves for each color
         self.wp_set = list() #set of white pieces
         self.bp_set = list() #set of black pieces
         self.p_set = {'B': self.bp_set, 'W': self.wp_set} #easier access
@@ -35,14 +35,12 @@ class Camelot:
             self.bp_set.append((9,j))
         if debug: #testing only: add corner case scenarios here
             self.hu_color = 'W'
-            self.board[4][2], self.board[12][3] = self.board[12][3], self.board[4][2]
+            self.board[4][2], self.board[7][2] = self.board[7][2], self.board[4][2]
             self.wp_set.remove((4,2))
-            self.wp_set.append((12,3))
+            self.wp_set.append((7,2))
             self.board[4][3], self.board[12][4] = self.board[12][4], self.board[4][3]
             self.wp_set.remove((4,3))
             self.wp_set.append((12,4))
-            #self.detect_captures('W')
-            #self.detect_captures('B')
 
     def printboard(self):
         def horizrule(): #to print numbers for coordinates
@@ -116,17 +114,18 @@ class Camelot:
     def detect_captures(self, pcolor, board=None):
         if board is None:
             board = self.board
-        self.capmoves[pcolor] = list() #re-initialize so that old captures aren't recorded
+        capmoves = list() #re-initialize so that old captures aren't recorded
         target  = 'B' if pcolor == 'W' else 'W'
         for (px, py) in self.p_set[pcolor]:
             for i,j in [(-2,2), (0,2), (2,2), (2,0), (2,-2), (0,-2), (-2,-2), (-2,0)]: #directions
                 if self.isonboard(px+i, py+j):
                     if board[px+i][py+j] == '__' and board[px+int(i/2)][py+int(j/2)] == target + 'P': #if there's an empty spot to jump over an enemy piece to
-                        self.capmoves[pcolor].append((i,j, px, py))
+                        capmoves.append((i,j, px, py))
+        return capmoves
 
     def hu_makemove(self):
-        self.detect_captures(self.hu_color) #find if we can make any captures
-        if len(self.capmoves[self.hu_color]) == 0: #no captures; play regular move
+        capmoves = self.detect_captures(self.hu_color) #find if we can make any captures
+        if len(capmoves) == 0: #no captures; play regular move
             for idx, elem in enumerate(self.p_set[self.hu_color]):
                 print('*** %i: %s' % (idx, elem))
             choice1 = -1
@@ -158,20 +157,20 @@ class Camelot:
         else: #captures are obligatory
             print('Playing capture move.')
             print('Select a capture move (options are listed as X-offset, Y-offset, X-start, Y-start)')
-            for idx, piece in enumerate(self.capmoves[self.hu_color]):
+            for idx, piece in enumerate(capmoves):
                 print('*** %i: ' % idx, end='')
                 print(piece)
             choice = -1
-            while choice not in range(len(self.capmoves[self.hu_color])):
+            while choice not in range(len(capmoves)):
                 choice = input('Select the move: ')
                 if not choice.isdigit():
                     print('Bad selection, try again.')
                 else:
                     choice = int(choice)
-                    if choice not in range(len(self.capmoves[self.hu_color])):
+                    if choice not in range(len(capmoves)):
                         print('Bad selection, try again.')
-            i, j, px, py = self.capmoves[self.hu_color][choice]
-            self.capmoves[self.hu_color].remove((i, j, px, py))
+            i, j, px, py = capmoves[choice]
+            capmoves.remove((i, j, px, py))
             fx, fy = px+i, py+j
             ex, ey = px+int(i/2), py+int(j/2)
             self.p_set[self.hu_color][self.p_set[self.hu_color].index((px, py))] = (fx, fy)
@@ -180,14 +179,23 @@ class Camelot:
             self.p_set[self.co_color].remove((ex, ey))
             self.board[ex][ey] = '__'
 
-    def co_makemove(self):
-        self.detect_captures(self.co_color)
-        if len(self.capmoves[self.co_color]) == 0:
-            piecemoves = dict()
+    def _enum_moves(self, board): #returns a dictionary of actions ready for utility calculation
+        moves = self.detect_captures(self.co_color, board)
+        if len(moves) == 0: #if no captures, look at regular moves
+            moves = list()
             for px, py in self.p_set[self.co_color]:
-                piecemoves[(px, py)] = self.getmoves(px, py, self.co_color)
-        else:
-            piecemoves = self.capmoves[self.co_color]
+                fullmoves = self.getmoves(px, py, self.co_color)
+                moves += [(fx-px, fy-py, px, py) for fx, fy in fullmoves] #converting from destination,piece to offset,piece
+        actions = {x:0 for x in moves} #converting to dictionary
+        return actions
+    
+    def _alphabeta(self, pcolor, board, actions):
+        pass
+    
+    def co_makemove(self):
+        board = self.board
+        move = self._alphabeta(self.co_color, board, self._enum_moves(board))
+        pass
 
 if __name__ == '__main__':
     #while True:
