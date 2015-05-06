@@ -2,6 +2,7 @@
 from time import sleep
 from calendar import timegm
 from time import gmtime
+from pprint import pprint
 import sys
 RECLIMIT = 100 #sys.getrecursionlimit() - 1
 
@@ -66,6 +67,7 @@ class Camelot:
                 print(elem, end=' ')
             print(rownum)
         horizrule()
+        pprint(self.p_set)
         
     def isonboard(self, px, py): #check if a location is on the board or not. Static, doesn't depend on game state.
         if px >= 0 and px <= 13 and py >= 0 and py <= 7:
@@ -200,45 +202,53 @@ class Camelot:
         if stupid: #stupid algorithm: pick a random move
             from random import choice
             return choice(list(actions.keys()))
-        maxv = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True)
+        maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True, debug=False)
         print('Max value: %i, actions: ' % maxv, end='')
-        print(actions)
-        for action, v in actions.items():
+        print(finalactions)
+        for action, v in finalactions.items():
             if v == maxv:
                 return action
 
-    def _minmaxval(self, pcolor, board, p_set, actions, alpha, beta, starttime, depth, ismax):
+    def _minmaxval(self, pcolor, board, p_set, actions, alpha, beta, starttime, depth, ismax, debug):
         if (self.detect_win(board) is not None) or (timenow() - starttime >= 10) or (depth == RECLIMIT):
-            return self.get_utility(pcolor, board, p_set)
+            return self.get_utility(pcolor, board, p_set), actions
         v = float('-inf') if ismax else float('inf')
         ocolor = 'B' if pcolor == 'W' else 'W'
         for i, move in enumerate(actions.keys()):
-            print('Move to play: %i/' % i, end='')
-            print(ismax, end=' ')
-            print(move)
+            if debug:
+                print('Move to play: %i/' % i, end='')
+                print(ismax, end=' ')
+                print(move)
             board2 = board
             ix, iy, px, py = move
+            ###########begin: play the move
             if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
                 ex, ey = px+int(ix/2), py+int(iy/2)
                 if (ex, ey) in p_set[ocolor]: #board2[ex][ey] == ocolor + 'P': #capture
                     board2[ex][ey] = '__'
-                    print('Enemy piece: %i, %i' % (ex, ey), file=sys.stderr)
-                    print('Set of enemy pieces: ', end='', file=sys.stderr)
-                    print(p_set[ocolor], file=sys.stderr)
+                    if debug:
+                        print('Enemy piece: %i, %i' % (ex, ey), file=sys.stderr)
+                        print('Set of enemy pieces: ', end='', file=sys.stderr)
+                        print(p_set[ocolor], file=sys.stderr)
                     p_set[ocolor].remove((ex,ey))
             board2[px+ix][py+iy], board2[px][py] = board2[px][py], board2[px+ix][py+iy]
+            ###########end: play the move
             newactions = self._enum_moves(board2, p_set, ocolor, actions)
             if ismax:
-                v = max(v, self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=False))
+                v2, _ = self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=False, debug=debug)
+                v = max(v, v2)
+                actions[move] += v
                 if v >= beta:
-                    return v
+                    return v, actions
                 alpha = max(alpha, v)
             else:
-                v = min(v, self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=True))
+                v2, _ = self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=True, debug=debug)
+                v = min(v, v2)
+                actions[move] += v
                 if v >= alpha:
-                    return v
+                    return v, actions
                 beta = min(beta, v)
-        return v
+        return v, actions
 
     def co_makemove(self):
         move = self._alphabeta(self.co_color, self.board, self.p_set, stupid=False)
@@ -254,6 +264,8 @@ class Camelot:
                 self.board[ex][ey] = '__'
                 self.p_set[self.hu_color].remove((ex,ey))
         self.board[px+ix][py+iy], self.board[px][py] = self.board[px][py], self.board[px+ix][py+iy]
+        idx = self.p_set[self.co_color].index((px, py))
+        self.p_set[self.co_color][idx] = (px+ix, py+iy)
         
 
 if __name__ == '__main__':
@@ -268,6 +280,7 @@ if __name__ == '__main__':
     if color == 'W':
         game.printboard()
         game.hu_makemove()
+        game.printboard()
     while game.detect_win() is None:
         if game.detect_win() is None:
             game.co_makemove()
