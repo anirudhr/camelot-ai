@@ -101,6 +101,24 @@ class Camelot:
             'W' if board[13][3] == 'WP' and board[13][4] == 'WP' else \
                 None
 
+    def repaint_board(self):
+        self.board = [['__']*8 for _ in range(14)] #Initialize the board with blank tiles
+        for i in range(3):
+            for j in range(3-i): #top-left
+                self.board[i][j] = '  ' #not part of the board
+            for j in range(i+5, 8): #top-right
+                self.board[i][j] = '  '
+            for j in range(i+1): #bottom-left
+                self.board[i+11][j] = '  '
+            for j in range(2-i, 3): #bottom-right
+                self.board[i+11][j+5] = '  '
+        for j in [3,4]: #initialize castles
+            self.board[0][j] = 'WC'
+            self.board[13][j] = 'BC'
+        for c in ['B', 'W']:
+            for x, y in self.p_set[c]:
+                self.board[x][y] = c + 'P'
+
     def get_utility(self, pcolor, board, p_set):
         ocolor = 'B' if pcolor == 'W' else 'W'
         castley = 13 if ocolor == 'B' else 0
@@ -197,14 +215,15 @@ class Camelot:
         actions = {x:0 for x in moves if x not in origmoves} #converting to dictionary
         return actions
     
-    def _alphabeta(self, pcolor, board, p_set, stupid=False):
+    def _alphabeta(self, pcolor, board, p_set, stupid=False, debug=False):
         actions = self._enum_moves(board, p_set, self.co_color, None)
         if stupid: #stupid algorithm: pick a random move
             from random import choice
             return choice(list(actions.keys()))
-        maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True, debug=False)
-        print('Max value: %i, actions: ' % maxv, end='')
-        print(finalactions)
+        maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True, debug=debug)
+        if debug:
+            print('Max value: %i, actions: ' % maxv, end='')
+            print(finalactions)
         for action, v in finalactions.items():
             if v == maxv:
                 return action
@@ -219,7 +238,8 @@ class Camelot:
                 print('Move to play: %i/' % i, end='')
                 print(ismax, end=' ')
                 print(move)
-            board2 = board
+            board2 = board.copy()
+            p_set2 = p_set.copy()
             ix, iy, px, py = move
             ###########begin: play the move
             if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
@@ -230,19 +250,19 @@ class Camelot:
                         print('Enemy piece: %i, %i' % (ex, ey), file=sys.stderr)
                         print('Set of enemy pieces: ', end='', file=sys.stderr)
                         print(p_set[ocolor], file=sys.stderr)
-                    p_set[ocolor].remove((ex,ey))
+                    p_set2[ocolor].remove((ex,ey))
             board2[px+ix][py+iy], board2[px][py] = board2[px][py], board2[px+ix][py+iy]
             ###########end: play the move
-            newactions = self._enum_moves(board2, p_set, ocolor, actions)
+            newactions = self._enum_moves(board2, p_set2, ocolor, actions)
             if ismax:
-                v2, _ = self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=False, debug=debug)
+                v2, _ = self._minmaxval(ocolor, board2, p_set2, newactions, alpha, beta, starttime, depth+1, ismax=False, debug=debug)
                 v = max(v, v2)
                 actions[move] += v
                 if v >= beta:
                     return v, actions
                 alpha = max(alpha, v)
             else:
-                v2, _ = self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=True, debug=debug)
+                v2, _ = self._minmaxval(ocolor, board2, p_set2, newactions, alpha, beta, starttime, depth+1, ismax=True, debug=debug)
                 v = min(v, v2)
                 actions[move] += v
                 if v >= alpha:
@@ -251,7 +271,9 @@ class Camelot:
         return v, actions
 
     def co_makemove(self):
-        move = self._alphabeta(self.co_color, self.board, self.p_set, stupid=False)
+        print('Thinking...')
+        move = self._alphabeta(self.co_color, self.board.copy(), self.p_set.copy(), stupid=False, debug=False)
+        self.repaint_board()
         print('Computer move: ', end='')
         print(move)
         ix, iy, px, py = move
