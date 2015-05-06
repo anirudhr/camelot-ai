@@ -1,14 +1,19 @@
 #!/usr/bin/python3
 from time import sleep
+from calendar import timegm
+from time import gmtime
+import sys
+RECLIMIT = 100 #sys.getrecursionlimit() - 1
+
+def timenow():
+    return timegm(gmtime())
 
 class Camelot:
     def __init__(self, color, debug=False):
         self.hu_color = color
         self.co_color = 'B' if color == 'W' else 'W'
         #self.capmoves = {'W': list(), 'B': list()} #possible capture moves for each color
-        self.wp_set = list() #set of white pieces
-        self.bp_set = list() #set of black pieces
-        self.p_set = {'B': self.bp_set, 'W': self.wp_set} #easier access
+        self.p_set = {'B': list(), 'W': list()} #easier access
         
         self.board = [['__']*8 for _ in range(14)] #Initialize the board with blank tiles
         for i in range(3):
@@ -25,24 +30,26 @@ class Camelot:
             self.board[13][j] = 'BC'
             for i in [4,5]: #initialize black pieces
                 self.board[i][j] = 'WP'
-                self.wp_set.append((i,j))
+                self.p_set['W'].append((i,j))
                 self.board[i+4][j] = 'BP'
-                self.bp_set.append((i+4,j)) 
+                self.p_set['B'].append((i+4,j)) 
         for j in [2,5]: #initialize white pieces
             self.board[4][j] = 'WP'
-            self.wp_set.append((4,j))
+            self.p_set['W'].append((4,j))
             self.board[9][j] = 'BP'
-            self.bp_set.append((9,j))
+            self.p_set['B'].append((9,j))
         if debug: #testing only: add corner case scenarios here
             self.hu_color = 'W'
             self.board[4][2], self.board[7][2] = self.board[7][2], self.board[4][2]
-            self.wp_set.remove((4,2))
-            self.wp_set.append((7,2))
+            self.p_set['W'].remove((4,2))
+            self.p_set['W'].append((7,2))
             self.board[4][3], self.board[12][4] = self.board[12][4], self.board[4][3]
-            self.wp_set.remove((4,3))
-            self.wp_set.append((12,4))
+            self.p_set['W'].remove((4,3))
+            self.p_set['W'].append((12,4))
 
-    def printboard(self):
+    def printboard(self, board=None):
+        if board is None:
+            board = self.board
         def horizrule(): #to print numbers for coordinates
             print('  ', end=' ')
             for i in range(8):
@@ -50,7 +57,7 @@ class Camelot:
             print()
         horizrule()
         #from pprint import pprint
-        for rownum, row in enumerate(self.board):
+        for rownum, row in enumerate(board):
             if rownum < 10: #for neatness
                 print(' %i' % rownum, end=' ')
             else:
@@ -60,13 +67,13 @@ class Camelot:
             print(rownum)
         horizrule()
         
-    def isonboard(self, px, py): #check if a location is on the board or not
+    def isonboard(self, px, py): #check if a location is on the board or not. Static, doesn't depend on game state.
         if px >= 0 and px <= 13 and py >= 0 and py <= 7:
             return self.board[px][py] != '  '
         else:
             return False
         
-    def get_moves(self, px, py, pcolor, board=None):
+    def get_moves(self, px, py, pcolor, board=None): #no p_set needed
         if board is None:
             board = self.board
         simplemoves = [(i,j) \
@@ -85,17 +92,14 @@ class Camelot:
 
         return simplemoves + cantermoves
     
-    def detect_win(self):
-        return 'B' if self.board[0][3] == 'BP' and  self.board[0][4] == 'BP' else \
-            'W' if self.board[13][3] == 'WP' and  self.board[13][4] == 'WP' else \
+    def detect_win(self, board=None): #no p_set needed
+        if board is None:
+            board = self.board
+        return 'B' if board[0][3] == 'BP' and board[0][4] == 'BP' else \
+            'W' if board[13][3] == 'WP' and board[13][4] == 'WP' else \
                 None
-#        if self.board[0][3] == 'BP' and  self.board[0][4] == 'BP':
-#            return 'B'
-#        if self.board[13][3] == 'WP' and  self.board[13][4] == 'WP':
-#            return 'W'
-#        return None
 
-    def get_utility(self, pcolor, board):
+    def get_utility(self, pcolor, board, p_set):
         ocolor = 'B' if pcolor == 'W' else 'W'
         castley = 13 if ocolor == 'B' else 0
         if board[castley][3] == pcolor + 'P' and board[castley][4] == pcolor + 'P':
@@ -104,19 +108,20 @@ class Camelot:
             castlescore = 500 #if one castle position is occupied by the player
         else:
             castlescore = 0
-        print('Castle score: %i' % castlescore)
-        distancescore = sum([2*(abs(px - castley)) for px, py in self.p_set[pcolor]]) #distance from castle for each player piece
-        print('Distance score: %i' % distancescore)
-        enemyscore = -5*len(self.p_set[ocolor]) #penalty for number of enemy pieces
-        print('Enemy piece score: %i' % enemyscore)
+        #print('Castle score: %i' % castlescore)
+        distancescore = sum([2*(abs(px - castley)) for px, py in p_set[pcolor]]) #distance from castle for each player piece
+        #print('Distance score: %i' % distancescore)
+        enemyscore = -5*len(p_set[ocolor]) #penalty for number of enemy pieces
+        #print('Enemy piece score: %i' % enemyscore)
         return castlescore + distancescore + enemyscore
 
-    def detect_captures(self, pcolor, board=None):
-        if board is None:
+    def detect_captures(self, pcolor, board=None, p_set=None):
+        if board is None or p_set is None:
             board = self.board
+            p_set = self.p_set
         capmoves = list() #re-initialize so that old captures aren't recorded
         target  = 'B' if pcolor == 'W' else 'W'
-        for (px, py) in self.p_set[pcolor]:
+        for (px, py) in p_set[pcolor]:
             for i,j in [(-2,2), (0,2), (2,2), (2,0), (2,-2), (0,-2), (-2,-2), (-2,0)]: #directions
                 if self.isonboard(px+i, py+j):
                     if board[px+i][py+j] == '__' and board[px+int(i/2)][py+int(j/2)] == target + 'P': #if there's an empty spot to jump over an enemy piece to
@@ -179,27 +184,68 @@ class Camelot:
             self.p_set[self.co_color].remove((ex, ey))
             self.board[ex][ey] = '__'
 
-    def _enum_moves(self, board): #returns a dictionary of actions ready for utility calculation
-        moves = self.detect_captures(self.co_color, board)
+    def _enum_moves(self, board, p_set, pcolor): #returns a dictionary of actions ready for utility calculation
+        moves = self.detect_captures(pcolor, board, p_set)
         if len(moves) == 0: #if no captures, look at regular moves
             moves = list()
-            for px, py in self.p_set[self.co_color]:
-                fullmoves = self.get_moves(px, py, self.co_color)
+            for px, py in p_set[pcolor]:
+                fullmoves = self.get_moves(px, py, pcolor)
                 moves += [(fx-px, fy-py, px, py) for fx, fy in fullmoves] #converting from destination,piece to offset,piece
         actions = {x:0 for x in moves} #converting to dictionary
         return actions
     
-    def _alphabeta(self, pcolor, board, actions, stupid=False):
+    def _alphabeta(self, pcolor, board, p_set, stupid=False):
+        actions = self._enum_moves(board, p_set, self.co_color)
         if stupid: #stupid algorithm: pick a random move
             from random import choice
             return choice(list(actions.keys()))
-    
+        maxv = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True)
+        for action, v in actions.items():
+            if v == maxv:
+                return action
+
+    def _minmaxval(self, pcolor, board, p_set, actions, alpha, beta, starttime, depth, ismax):
+        if (self.detect_win(board) is not None) or (timenow() - starttime >= 10) or (depth == RECLIMIT):
+            return self.get_utility(pcolor, board, p_set)
+        v = float('-inf') if ismax else float('inf')
+        ocolor = 'B' if pcolor == 'W' else 'W'
+        for i, move in enumerate(actions.keys()):
+            print('Move to play: %i' % i, end='')
+            print(move)
+            print('Pieces in play: ', end='')
+            print(p_set)
+            board2 = board
+            ix, iy, px, py = move
+            if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
+                ex, ey = px+int(ix/2), py+int(iy/2)
+                if (ex, ey) in p_set[ocolor]: #board2[ex][ey] == ocolor + 'P': #capture
+                    board2[ex][ey] = '__'
+                    print('Enemy piece: %i, %i' % (ex, ey), file=sys.stderr)
+                    print('Set of enemy pieces: ', end='', file=sys.stderr)
+                    print(p_set[ocolor], file=sys.stderr)
+                    p_set[ocolor].remove((ex,ey))
+            board2[px+ix][py+iy], board2[px][py] = board2[px][py], board2[px+ix][py+iy]
+            newactions = self._enum_moves(board2, p_set, ocolor)
+            if ismax:
+                v = max(v, self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=False))
+                if v >= beta:
+                    return v
+                alpha = max(alpha, v)
+            else:
+                v = min(v, self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=True))
+                if v >= alpha:
+                    return v
+                beta = min(beta, v)
+        return v
+
     def co_makemove(self):
-        board = self.board
-        move = self._alphabeta(self.co_color, board, self._enum_moves(board), stupid=True)
+        move = self._alphabeta(self.co_color, self.board, self.p_set, stupid=False)
         print('Computer move: ', end='')
         print(move)
         ix, iy, px, py = move
+        if move is None:
+            print('Error: computer generated empty move.', file=sys.stderr)
+            exit(1)
         if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
             ex, ey = px+int(ix/2), py+int(iy/2)
             if self.board[ex][ey] == self.hu_color + 'P': #capture
