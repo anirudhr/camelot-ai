@@ -5,7 +5,7 @@ from time import gmtime
 from pprint import pprint
 import sys
 RECLIMIT = 500 #sys.getrecursionlimit() - 1
-MAXTIME = 10 #how much time to spend searching for an answer
+MAXTIME = 10 #how much time in seconds to spend searching for an answer
 
 def timenow():
     return timegm(gmtime()) #current time since epoch, in seconds
@@ -212,7 +212,6 @@ class Camelot:
         maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, \
                                              float('-inf'), float('inf'), timenow(), depth=0, ismax=True, \
                                              debug=debug) #here's the alpha-beta algorithm
-        print('Max value: %i' % maxv)
         if debug:
             print('Max value: %i' % maxv)
             print('Actions: ' + str(finalactions))
