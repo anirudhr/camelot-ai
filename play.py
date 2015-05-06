@@ -66,7 +66,7 @@ class Camelot:
         else:
             return False
         
-    def getmoves(self, px, py, pcolor, board=None):
+    def get_moves(self, px, py, pcolor, board=None):
         if board is None:
             board = self.board
         simplemoves = [(i,j) \
@@ -138,7 +138,7 @@ class Camelot:
                     if choice1 not in range(6):
                         print('Bad choice, try again. ', end='')
             px, py = self.p_set[self.hu_color][choice1]
-            moves = self.getmoves(px, py, self.hu_color)
+            moves = self.get_moves(px, py, self.hu_color)
             for idx, elem in enumerate(moves):
                 print('*** %i: %s' % (idx, elem))
             choice2 = -1
@@ -184,18 +184,29 @@ class Camelot:
         if len(moves) == 0: #if no captures, look at regular moves
             moves = list()
             for px, py in self.p_set[self.co_color]:
-                fullmoves = self.getmoves(px, py, self.co_color)
+                fullmoves = self.get_moves(px, py, self.co_color)
                 moves += [(fx-px, fy-py, px, py) for fx, fy in fullmoves] #converting from destination,piece to offset,piece
         actions = {x:0 for x in moves} #converting to dictionary
         return actions
     
-    def _alphabeta(self, pcolor, board, actions):
-        pass
+    def _alphabeta(self, pcolor, board, actions, stupid=False):
+        if stupid: #stupid algorithm: pick a random move
+            from random import choice
+            return choice(list(actions.keys()))
     
     def co_makemove(self):
         board = self.board
-        move = self._alphabeta(self.co_color, board, self._enum_moves(board))
-        pass
+        move = self._alphabeta(self.co_color, board, self._enum_moves(board), stupid=True)
+        print('Computer move: ', end='')
+        print(move)
+        ix, iy, px, py = move
+        if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
+            ex, ey = px+int(ix/2), py+int(iy/2)
+            if self.board[ex][ey] == self.hu_color + 'P': #capture
+                self.board[ex][ey] = '__'
+                self.p_set[self.hu_color].remove((ex,ey))
+        self.board[px+ix][py+iy], self.board[px][py] = self.board[px][py], self.board[px+ix][py+iy]
+        
 
 if __name__ == '__main__':
     #while True:
