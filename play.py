@@ -184,22 +184,25 @@ class Camelot:
             self.p_set[self.co_color].remove((ex, ey))
             self.board[ex][ey] = '__'
 
-    def _enum_moves(self, board, p_set, pcolor): #returns a dictionary of actions ready for utility calculation
+    def _enum_moves(self, board, p_set, pcolor, origactions): #returns a dictionary of actions ready for utility calculation
+        origmoves = [] if origactions is None else origactions.keys()
         moves = self.detect_captures(pcolor, board, p_set)
         if len(moves) == 0: #if no captures, look at regular moves
             moves = list()
             for px, py in p_set[pcolor]:
                 fullmoves = self.get_moves(px, py, pcolor)
                 moves += [(fx-px, fy-py, px, py) for fx, fy in fullmoves] #converting from destination,piece to offset,piece
-        actions = {x:0 for x in moves} #converting to dictionary
+        actions = {x:0 for x in moves if x not in origmoves} #converting to dictionary
         return actions
     
     def _alphabeta(self, pcolor, board, p_set, stupid=False):
-        actions = self._enum_moves(board, p_set, self.co_color)
+        actions = self._enum_moves(board, p_set, self.co_color, None)
         if stupid: #stupid algorithm: pick a random move
             from random import choice
             return choice(list(actions.keys()))
         maxv = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True)
+        print('Max value: %i, actions: ' % maxv, end='')
+        print(actions)
         for action, v in actions.items():
             if v == maxv:
                 return action
@@ -210,10 +213,9 @@ class Camelot:
         v = float('-inf') if ismax else float('inf')
         ocolor = 'B' if pcolor == 'W' else 'W'
         for i, move in enumerate(actions.keys()):
-            print('Move to play: %i' % i, end='')
+            print('Move to play: %i/' % i, end='')
+            print(ismax, end=' ')
             print(move)
-            print('Pieces in play: ', end='')
-            print(p_set)
             board2 = board
             ix, iy, px, py = move
             if abs(ix) == 2 or abs(iy) == 2: #jumping over a piece
@@ -225,7 +227,7 @@ class Camelot:
                     print(p_set[ocolor], file=sys.stderr)
                     p_set[ocolor].remove((ex,ey))
             board2[px+ix][py+iy], board2[px][py] = board2[px][py], board2[px+ix][py+iy]
-            newactions = self._enum_moves(board2, p_set, ocolor)
+            newactions = self._enum_moves(board2, p_set, ocolor, actions)
             if ismax:
                 v = max(v, self._minmaxval(ocolor, board2, p_set, newactions, alpha, beta, starttime, depth+1, ismax=False))
                 if v >= beta:
