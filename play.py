@@ -15,30 +15,31 @@ class Camelot:
         self.co_color = 'B' if color == 'W' else 'W'
         #self.capmoves = {'W': list(), 'B': list()} #possible capture moves for each color
         self.p_set = {'B': list(), 'W': list()} #easier access
-        
-        self.board = [['__']*8 for _ in range(14)] #Initialize the board with blank tiles
-        for i in range(3):
-            for j in range(3-i): #top-left
-                self.board[i][j] = '  ' #not part of the board
-            for j in range(i+5, 8): #top-right
-                self.board[i][j] = '  '
-            for j in range(i+1): #bottom-left
-                self.board[i+11][j] = '  '
-            for j in range(2-i, 3): #bottom-right
-                self.board[i+11][j+5] = '  '
+        self.board = list()
+#         self.board = [['__']*8 for _ in range(14)] #Initialize the board with blank tiles
+#         for i in range(3):
+#             for j in range(3-i): #top-left
+#                 self.board[i][j] = '  ' #not part of the board
+#             for j in range(i+5, 8): #top-right
+#                 self.board[i][j] = '  '
+#             for j in range(i+1): #bottom-left
+#                 self.board[i+11][j] = '  '
+#             for j in range(2-i, 3): #bottom-right
+#                 self.board[i+11][j+5] = '  '
         for j in [3,4]: #initialize castles
-            self.board[0][j] = 'WC'
-            self.board[13][j] = 'BC'
+#            self.board[0][j] = 'WC'
+#            self.board[13][j] = 'BC'
             for i in [4,5]: #initialize black pieces
-                self.board[i][j] = 'WP'
+#                self.board[i][j] = 'WP'
                 self.p_set['W'].append((i,j))
-                self.board[i+4][j] = 'BP'
+#                self.board[i+4][j] = 'BP'
                 self.p_set['B'].append((i+4,j)) 
         for j in [2,5]: #initialize white pieces
-            self.board[4][j] = 'WP'
+#            self.board[4][j] = 'WP'
             self.p_set['W'].append((4,j))
-            self.board[9][j] = 'BP'
+#            self.board[9][j] = 'BP'
             self.p_set['B'].append((9,j))
+        self.repaint_board()
         if debug: #testing only: add corner case scenarios here
             self.hu_color = 'W'
             self.board[4][2], self.board[7][2] = self.board[7][2], self.board[4][2]
@@ -67,7 +68,7 @@ class Camelot:
                 print(elem, end=' ')
             print(rownum)
         horizrule()
-        pprint(self.p_set)
+        #pprint(self.p_set)
         
     def isonboard(self, px, py): #check if a location is on the board or not. Static, doesn't depend on game state.
         if px >= 0 and px <= 13 and py >= 0 and py <= 7:
@@ -177,8 +178,9 @@ class Camelot:
                         print('Bad choice, try again. ', end='')
             fx, fy = moves[choice2]
             self.p_set[self.hu_color][choice1] = (fx, fy)
-            self.board[fx][fy] = self.board[px][py]
-            self.board[px][py] = '__'
+            self.repaint_board()
+            #self.board[fx][fy] = self.board[px][py]
+            #self.board[px][py] = '__'
         else: #captures are obligatory
             print('Playing capture move.')
             print('Select a capture move (options are listed as X-offset, Y-offset, X-start, Y-start)')
@@ -199,10 +201,11 @@ class Camelot:
             fx, fy = px+i, py+j
             ex, ey = px+int(i/2), py+int(j/2)
             self.p_set[self.hu_color][self.p_set[self.hu_color].index((px, py))] = (fx, fy)
-            self.board[fx][fy] = self.board[px][py]
-            self.board[px][py] = '__'
+            #self.board[fx][fy] = self.board[px][py]
+            #self.board[px][py] = '__'
             self.p_set[self.co_color].remove((ex, ey))
-            self.board[ex][ey] = '__'
+            #self.board[ex][ey] = '__'
+            self.repaint_board()
 
     def _enum_moves(self, board, p_set, pcolor, origactions): #returns a dictionary of actions ready for utility calculation
         origmoves = [] if origactions is None else origactions.keys()
@@ -217,10 +220,14 @@ class Camelot:
     
     def _alphabeta(self, pcolor, board, p_set, stupid=False, debug=False):
         actions = self._enum_moves(board, p_set, self.co_color, None)
+        if len(actions) == 1: #if only 1 possible action, why even go into min/max calculations
+            return actions.keys()[0]
         if stupid: #stupid algorithm: pick a random move
             from random import choice
             return choice(list(actions.keys()))
-        maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, float('-inf'), float('inf'), timenow(), depth=0, ismax=True, debug=debug)
+        maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, \
+                                             float('-inf'), float('inf'), timenow(), depth=0, ismax=True, \
+                                             debug=debug)
         if debug:
             print('Max value: %i, actions: ' % maxv, end='')
             print(finalactions)
@@ -291,16 +298,15 @@ class Camelot:
         
 
 if __name__ == '__main__':
-    #while True:
-    #    color = input('Select your color (W/B): ')
-    #    if color not in {'W', 'B'}:
-    #        print('Bad input, try again.')
-    #    else:
-    #        break
-    color = 'W'
-    game = Camelot(color, debug=True)
+    while True:
+        color = input('Select your color (W/B): ')
+        if color not in {'W', 'B'}:
+            print('Bad input, try again.')
+        else:
+            break
+    game = Camelot(color, debug=False)
+    game.printboard()
     if color == 'W':
-        game.printboard()
         game.hu_makemove()
         game.printboard()
     while game.detect_win() is None:
