@@ -103,14 +103,14 @@ class Camelot:
                 self.board[x][y] = c + 'P'
 
     def _get_utility(self, pcolor, board, p_set): #utility function for use by AI
-        DISTMUL = 2
+        DISTMUL = -10
         ENEMMUL = -5
         ocolor = 'B' if pcolor == 'W' else 'W'
         castley = 13 if ocolor == 'B' else 0
         if board[castley][3] == pcolor + 'P' and board[castley][4] == pcolor + 'P':
-            castlescore = 1000 #if both castle positions are occupied by the player
+            castlescore = 10000 #if both castle positions are occupied by the player
         elif board[castley][3] == pcolor + 'P' or board[castley][4] == pcolor + 'P':
-            castlescore = 500 #if one castle position is occupied by the player
+            castlescore = 5000 #if one castle position is occupied by the player
         else:
             castlescore = 0
         #print('Castle score: %i' % castlescore)
@@ -212,9 +212,10 @@ class Camelot:
         maxv, finalactions = self._minmaxval(pcolor, board, p_set, actions, \
                                              float('-inf'), float('inf'), timenow(), depth=0, ismax=True, \
                                              debug=debug) #here's the alpha-beta algorithm
+        print('Max value: %i' % maxv)
         if debug:
-            print('Max value: %i, actions: ' % maxv, end='')
-            print(finalactions)
+            print('Max value: %i' % maxv)
+            print('Actions: ' + str(finalactions))
         for action, v in finalactions.items(): #find which action to return
             if v == maxv:
                 return action
